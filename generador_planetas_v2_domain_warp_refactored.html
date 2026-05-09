@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Planetas v2</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #000;
+    }
+
+    #root {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+      display: flex;
+    }
+
+    #canvas-container {
+      flex: 1;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 268px;
+      height: 100%;
+      background: rgba(1, 5, 14, 0.92);
+      border-left: 1px solid rgba(40, 120, 255, 0.2);
+      overflow-y: auto;
+      padding: 12px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+
+    .panel-title {
+      color: #2af;
+      font-size: 9px;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+      opacity: 0.7;
+    }
+
+    .planet-name {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 1px;
+    }
+
+    .planet-seed {
+      color: #456;
+      font-size: 9px;
+      margin-bottom: 10px;
+    }
+
+    .planet-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(40, 120, 255, 0.15);
+      margin-bottom: 10px;
+    }
+
+    .controls-section {
+      margin-bottom: 12px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+
+    /* Botones de tipo planeta */
+    .pb {
+      background: rgba(8, 15, 35, 0.95);
+      border: 1px solid rgba(40, 100, 200, 0.3);
+      color: #79a;
+      padding: 5px 2px;
+      font-size: 9px;
+      cursor: pointer;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .pb:hover {
+      background: rgba(0, 60, 180, 0.25);
+      border-color: rgba(60, 180, 255, 0.6);
+      color: #5df;
+    }
+
+    .pb.on {
+      background: rgba(0, 80, 220, 0.3);
+      border-color: rgba(80, 200, 255, 0.8);
+      color: #8ef;
+    }
+
+    /* Botones de herramientas */
+    .tb {
+      background: rgba(8, 15, 35, 0.95);
+      border: 1px solid rgba(40, 100, 200, 0.3);
+      color: #79a;
+      padding: 6px 3px;
+      font-size: 9px;
+      cursor: pointer;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      transition: all 0.15s ease;
+    }
+
+    .tb:hover {
+      background: rgba(0, 60, 180, 0.2);
+      color: #5df;
+    }
+
+    .tb.active {
+      background: rgba(0, 80, 220, 0.3);
+      border-color: rgba(80, 200, 255, 0.8);
+      color: #8ef;
+    }
+
+    /* Slider */
+    .slider-row {
+      margin-bottom: 8px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      color: #557;
+      font-size: 9px;
+      margin-bottom: 2px;
+    }
+
+    .slider-value {
+      color: #4af;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 3px;
+      -webkit-appearance: none;
+      background: rgba(0, 60, 160, 0.35);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #4af;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #4af;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Panel scrollbar */
+    #panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #panel::-webkit-scrollbar-thumb {
+      background: rgba(80, 150, 255, 0.4);
+      border-radius: 3px;
+    }
+
+    #panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 180, 255, 0.6);
+    }
+
+    /* Error message */
+    .error-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(200, 20, 20, 0.9);
+      color: #fff;
+      padding: 20px;
+      border-radius: 5px;
+      z-index: 100;
+      text-align: center;
+      max-width: 300px;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="canvas-container"></div>
+    <div id="panel">
+      <div class="panel-title">▸ GENERADOR DE PLANETAS v2</div>
+      <div class="planet-name" id="pname">Terrestre</div>
+      <div class="planet-seed" id="pseed">seed: —</div>
+      <div class="planet-grid" id="pbgrid"></div>
+      <div class="divider"></div>
+      <div id="ctrls"></div>
+      <div class="divider" style="margin: 10px 0"></div>
+      <div class="controls-grid">
+        <button class="tb" id="bAtm" title="Toggle atmósfera">◎ ATMÓSFERA</button>
+        <button class="tb" id="bCld" title="Toggle nubes">☁ NUBES</button>
+        <button class="tb" id="bRot" title="Toggle rotación automática">⟳ ROTAR</button>
+        <button class="tb" id="bRnd" title="Generar nuevo seed">↻ NUEVO SEED</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-message" class="error-message"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // ============================================================================
+    // SHADER CODE
+    // ============================================================================
+
+    // Noise functions - Simplex-like noise for procedural generation
+    const NOISE_FUNCTIONS = `
+      float hash(vec3 p) {
+        p = fract(p * 0.31830 + vec3(0.11));
+        p *= 17.0;
+        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+      }
+
+      float noise(vec3 p) {
+        vec3 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(
+            mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+            mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x),
+            f.y
+          ),
+          mix(
+            mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+            mix(hash(i + vec3(1,0,1)), hash(i + vec3(1,1,1)), f.x),
+            f.y
+          ),
+          f.z
+        );
+      }
+
+      float fbm(vec3 p, float r) {
+        float value = 0.0, amplitude = 0.5, max_val = 0.0;
+        for (int i = 0; i < 7; i++) {
+          value += amplitude * noise(p);
+          max_val += amplitude;
+          amplitude *= r;
+          p *= 2.13;
+        }
+        return value / max_val;
+      }
+    `;
+
+    // Planet vertex shader
+    const PLANET_VERTEX = `
+      varying vec3 vP, vN, vW;
+      void main() {
+        vP = position;
+        vN = normalize(normalMatrix * normal);
+        vW = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    // Planet fragment shader
+    const PLANET_FRAGMENT = NOISE_FUNCTIONS + `
+      precision highp float;
+      varying vec3 vP, vN, vW;
+      uniform float uT, uS, uW, uPo, uR, uSc, uG, uWp, uLv, uGl, uAm;
+      uniform vec3 uL, uC0, uC1, uC2, uC3, uC4, uC5, uC6, uN;
+
+      vec3 colorRamp(float h) {
+        if (uG > 0.5) {
+          // Gas giant gradient
+          float t = clamp(h, 0.0, 1.0) * 6.0;
+          if (t < 1.0) return mix(uC0, uC1, t);
+          if (t < 2.0) return mix(uC1, uC2, t - 1.0);
+          if (t < 3.0) return mix(uC2, uC3, t - 2.0);
+          if (t < 4.0) return mix(uC3, uC4, t - 3.0);
+          if (t < 5.0) return mix(uC4, uC5, t - 4.0);
+          return mix(uC5, uC6, t - 5.0);
+        }
+
+        // Terrestrial gradient
+        float w = uW;
+        float t0 = w - 0.1, t1 = w, t2 = w + 0.05, t3 = w + 0.23;
+        float t4 = w + 0.38, t5 = w + 0.53;
+
+        if (h <= t0) return uC0;
+        if (h <= t1) return mix(uC0, uC1, (h - t0) / 0.1);
+        if (h <= t2) return mix(uC1, uC2, (h - t1) / 0.05);
+        if (h <= t3) return mix(uC2, uC3, (h - t2) / 0.18);
+        if (h <= t4) return mix(uC3, uC4, (h - t3) / 0.15);
+        if (h <= t5) return mix(uC4, uC5, (h - t4) / 0.15);
+        return mix(uC5, uC6, clamp((h - t5) / 0.15, 0.0, 1.0));
+      }
+
+      void main() {
+        vec3 d = normalize(vP);
+        float h;
+
+        if (uG > 0.5) {
+          // Gas giant rendering
+          vec3 sp = vec3(d.x * 0.2, d.y * 4.8, d.z * 0.2) * uSc + vec3(uS);
+          sp.x += uT * 0.008;
+          vec3 q = vec3(fbm(sp, uR), fbm(sp + vec3(3.1, 0.5, 0.9), uR), 0.0);
+          h = fbm(sp + uWp * vec3(q.x * 0.8, q.y * 0.25, q.x * 0.8), uR);
+        } else {
+          // Terrestrial rendering
+          vec3 sp = d * uSc + vec3(uS);
+          if (uWp > 0.05) {
+            vec3 q = vec3(
+              fbm(sp, uR),
+              fbm(sp + vec3(5.2, 1.3, 0.4), uR),
+              fbm(sp + vec3(1.7, 9.2, 3.4), uR)
+            );
+            h = fbm(sp + uWp * q * 3.0, uR);
+          } else {
+            h = fbm(sp, uR);
+          }
+        }
+
+        vec3 col = colorRamp(h);
+
+        // Polar cap
+        if (uPo < 0.99) {
+          float lat = abs(d.y);
+          col = mix(col, uC6, smoothstep(uPo - 0.06, uPo + 0.06, lat));
+        }
+
+        // Lighting
+        float dif = max(dot(vN, uL), 0.0), spec = 0.0;
+        if (uG < 0.5 && uW > 0.0 && h < uW + 0.02) {
+          vec3 hd = normalize(uL + normalize(cameraPosition - vW));
+          spec = pow(max(dot(vN, hd), 0.0), 200.0) * 0.9 * 
+                 smoothstep(uW + 0.02, uW - 0.03, h);
+        }
+
+        float night = max(0.0, 0.4 - dif) * 2.0;
+        float lava = uLv > 0.0 ? max(0.0, (0.35 - h) * uLv) : 0.0;
+
+        col = col * (dif + uAm) + spec * vec3(1.0, 0.97, 0.9) + uN * (night + lava + uGl);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // Cloud vertex shader
+    const CLOUD_VERTEX = `
+      varying vec3 vP, vN;
+      void main() {
+        vP = position;
+        vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    // Cloud fragment shader
+    const CLOUD_FRAGMENT = NOISE_FUNCTIONS + `
+      precision highp float;
+      varying vec3 vP, vN;
+      uniform float uT, uS, uCv, uSc;
+      uniform vec3 uL, uCo;
+
+      void main() {
+        vec3 p = normalize(vP) * uSc * 0.75 + vec3(uS + 100.0);
+        p.x += uT * 0.015;
+        vec3 q = vec3(fbm(p, 0.55), fbm(p + vec3(4.1, 1.2, 0.8), 0.55), 0.0);
+        float c = fbm(p + q * 2.0, 0.55);
+        c = smoothstep(uCv - 0.08, uCv + 0.22, c);
+        float d = max(0.0, dot(vN, uL)) * 0.5 + 0.5;
+        gl_FragColor = vec4(uCo, c * 0.6 * d);
+      }
+    `;
+
+    // Atmosphere vertex shader
+    const ATMOSPHERE_VERTEX = `
+      varying vec3 vN, vW;
+      void main() {
+        vN = normalize(normalMatrix * normal);
+        vW = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+
+    // Atmosphere fragment shader
+    const ATMOSPHERE_FRAGMENT = `
+      precision highp float;
+      varying vec3 vN, vW;
+      uniform vec3 uCo, uL;
+      uniform float uI;
+
+      void main() {
+        vec3 vd = normalize(cameraPosition - vW), n = normalize(vN);
+        float rim = 1.0 - abs(dot(n, vd));
+        float d = max(0.0, dot(n, uL)) * 0.5 + 0.5;
+        float tr = exp(-abs(dot(n, uL)) * 3.5) * 0.4;
+        float i = pow(rim, 2.2) * uI * (d + tr);
+        gl_FragColor = vec4(uCo, i);
+      }
+    `;
+
+    // ============================================================================
+    // PLANET PRESETS
+    // ============================================================================
+
+    const PLANET_PRESETS = {
+      terrestrial: {
+        n: 'Terrestre',
+        ic: '🌍',
+        w: 0.42,
+        po: 0.76,
+        r: 0.54,
+        sc: 2.8,
+        cv: 0.5,
+        g: 0,
+        wp: 0.8,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.28, 0.58, 1.0],
+        aI: 1.4,
+        ci: [0.93, 0.93, 0.96],
+        ni: [0.26, 0.18, 0.04],
+        c: [[0.03, 0.1, 0.42], [0.06, 0.24, 0.84], [0.1, 0.4, 0.1], [0.8, 0.7, 0.2], [0.6, 0.4, 0.1], [0.9, 0.9, 0.95], [0.95, 0.95, 0.98]],
+      },
+      volcanic: {
+        n: 'Volcánico',
+        ic: '🌋',
+        w: 0.03,
+        po: 1.0,
+        r: 0.62,
+        sc: 3.2,
+        cv: 0.82,
+        g: 0,
+        wp: 1.2,
+        lv: 2.0,
+        gl: 0,
+        am: 0.07,
+        ai: [1.0, 0.3, 0.04],
+        aI: 1.9,
+        ci: [0.32, 0.2, 0.08],
+        ni: [1.0, 0.32, 0.02],
+        c: [[0.06, 0.01, 0.0], [0.2, 0.05, 0.0], [0.3, 0.08, 0.02], [0.5, 0.1, 0.02], [0.8, 0.2, 0.05], [0.95, 0.4, 0.1], [0.1, 0.05, 0.02]],
+      },
+      alien: {
+        n: 'Alienígena',
+        ic: '🌿',
+        w: 0.35,
+        po: 0.88,
+        r: 0.56,
+        sc: 2.6,
+        cv: 0.45,
+        g: 0,
+        wp: 1.5,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.1, 0.8, 0.68],
+        aI: 1.7,
+        ci: [0.7, 0.95, 0.88],
+        ni: [0.0, 0.14, 0.1],
+        c: [[0.02, 0.15, 0.22], [0.04, 0.32, 0.4], [0.08, 0.5, 0.3], [0.15, 0.65, 0.25], [0.2, 0.75, 0.2], [0.8, 0.95, 0.8], [0.95, 0.98, 0.9]],
+      },
+      gasOrange: {
+        n: 'Gas Naranja',
+        ic: '🟠',
+        w: -1.0,
+        po: 1.0,
+        r: 0.72,
+        sc: 1.8,
+        cv: 0.8,
+        g: 1,
+        wp: 0.9,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.9, 0.5, 0.18],
+        aI: 2.3,
+        ci: [0.88, 0.65, 0.35],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.42, 0.16, 0.04], [0.7, 0.36, 0.1], [0.85, 0.5, 0.15], [0.95, 0.6, 0.2], [0.98, 0.7, 0.3], [0.99, 0.8, 0.4], [0.5, 0.3, 0.1]],
+      },
+      gasRed: {
+        n: 'Gas Rojo',
+        ic: '🔴',
+        w: -1.0,
+        po: 1.0,
+        r: 0.68,
+        sc: 1.6,
+        cv: 0.75,
+        g: 1,
+        wp: 1.3,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.85, 0.18, 0.08],
+        aI: 2.1,
+        ci: [0.95, 0.85, 0.75],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.52, 0.06, 0.04], [0.76, 0.16, 0.08], [0.88, 0.3, 0.15], [0.95, 0.45, 0.25], [0.98, 0.6, 0.35], [0.99, 0.75, 0.5], [0.6, 0.2, 0.1]],
+      },
+      stellar: {
+        n: 'Estelar',
+        ic: '☀️',
+        w: -1.0,
+        po: 1.0,
+        r: 0.76,
+        sc: 2.0,
+        cv: 0.88,
+        g: 1,
+        wp: 1.6,
+        lv: 0,
+        gl: 1.0,
+        am: 0.5,
+        ai: [1.0, 0.68, 0.18],
+        aI: 4.0,
+        ci: [1.0, 0.88, 0.55],
+        ni: [1.0, 0.72, 0.18],
+        c: [[0.88, 0.38, 0.02], [0.96, 0.52, 0.08], [0.98, 0.68, 0.15], [1.0, 0.8, 0.3], [1.0, 0.88, 0.5], [1.0, 0.95, 0.7], [0.95, 0.7, 0.1]],
+      },
+      tealOcean: {
+        n: 'Teal Océano',
+        ic: '🩵',
+        w: 0.62,
+        po: 0.84,
+        r: 0.52,
+        sc: 2.5,
+        cv: 0.44,
+        g: 0,
+        wp: 1.3,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.12, 0.7, 0.78],
+        aI: 1.9,
+        ci: [0.78, 0.96, 0.95],
+        ni: [0.0, 0.1, 0.08],
+        c: [[0.02, 0.18, 0.28], [0.04, 0.35, 0.48], [0.08, 0.5, 0.65], [0.15, 0.65, 0.75], [0.2, 0.78, 0.82], [0.8, 0.95, 0.98], [0.95, 0.98, 1.0]],
+      },
+      lunar: {
+        n: 'Lunar',
+        ic: '🌑',
+        w: -0.5,
+        po: 1.0,
+        r: 0.48,
+        sc: 4.0,
+        cv: 0.96,
+        g: 0,
+        wp: 0.2,
+        lv: 0,
+        gl: 0,
+        am: 0.05,
+        ai: [0.4, 0.4, 0.42],
+        aI: 0.3,
+        ci: [0.65, 0.65, 0.67],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.1, 0.1, 0.12], [0.2, 0.2, 0.22], [0.3, 0.3, 0.32], [0.4, 0.4, 0.42], [0.5, 0.5, 0.52], [0.7, 0.7, 0.72], [0.85, 0.85, 0.87]],
+      },
+      sandy: {
+        n: 'Arenoso',
+        ic: '🏜️',
+        w: -1.0,
+        po: 1.0,
+        r: 0.58,
+        sc: 1.4,
+        cv: 0.9,
+        g: 1,
+        wp: 0.5,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.84, 0.7, 0.42],
+        aI: 1.2,
+        ci: [0.9, 0.84, 0.62],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.42, 0.34, 0.16], [0.65, 0.52, 0.25], [0.78, 0.65, 0.35], [0.85, 0.75, 0.45], [0.9, 0.82, 0.55], [0.95, 0.88, 0.65], [0.7, 0.6, 0.4]],
+      },
+      glacial: {
+        n: 'Glacial',
+        ic: '❄️',
+        w: 0.22,
+        po: 0.26,
+        r: 0.44,
+        sc: 2.2,
+        cv: 0.65,
+        g: 0,
+        wp: 0.5,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.48, 0.74, 1.0],
+        aI: 1.0,
+        ci: [0.92, 0.96, 1.0],
+        ni: [0.0, 0.04, 0.12],
+        c: [[0.04, 0.1, 0.32], [0.1, 0.3, 0.6], [0.2, 0.45, 0.78], [0.4, 0.65, 0.88], [0.6, 0.78, 0.92], [0.85, 0.92, 0.98], [0.95, 0.98, 1.0]],
+      },
+      gasBlue: {
+        n: 'Gas Azul',
+        ic: '🔵',
+        w: -1.0,
+        po: 1.0,
+        r: 0.7,
+        sc: 1.7,
+        cv: 0.7,
+        g: 1,
+        wp: 1.0,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.08, 0.32, 0.88],
+        aI: 3.0,
+        ci: [0.48, 0.68, 1.0],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.04, 0.08, 0.3], [0.08, 0.18, 0.55], [0.12, 0.32, 0.75], [0.2, 0.48, 0.88], [0.35, 0.65, 0.95], [0.6, 0.8, 0.98], [0.2, 0.4, 0.8]],
+      },
+      gasGreen: {
+        n: 'Gas Verde',
+        ic: '🟢',
+        w: -1.0,
+        po: 1.0,
+        r: 0.68,
+        sc: 1.5,
+        cv: 0.75,
+        g: 1,
+        wp: 1.1,
+        lv: 0,
+        gl: 0,
+        am: 0.07,
+        ai: [0.18, 0.58, 0.38],
+        aI: 2.1,
+        ci: [0.48, 0.84, 0.62],
+        ni: [0.0, 0.0, 0.0],
+        c: [[0.05, 0.18, 0.1], [0.1, 0.38, 0.2], [0.18, 0.52, 0.28], [0.3, 0.65, 0.35], [0.45, 0.75, 0.45], [0.65, 0.88, 0.6], [0.3, 0.6, 0.3]],
+      },
+    };
+
+    // ============================================================================
+    // GLOBAL STATE
+    // ============================================================================
+
+    const STATE = {
+      seed: Math.random() * 200 - 100,
+      currentPlanet: 'terrestrial',
+      autoRotate: true,
+      showAtmosphere: true,
+      showClouds: true,
+      params: {
+        w: PLANET_PRESETS.terrestrial.w,
+        po: PLANET_PRESETS.terrestrial.po,
+        r: PLANET_PRESETS.terrestrial.r,
+        sc: PLANET_PRESETS.terrestrial.sc,
+        cv: PLANET_PRESETS.terrestrial.cv,
+        wp: PLANET_PRESETS.terrestrial.wp,
+        sp: 1.0,
+      },
+    };
+
+    // ============================================================================
+    // THREE.JS SETUP
+    // ============================================================================
+
+    // Error handling
+    function showError(message) {
+      const errorEl = document.getElementById('error-message');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+      console.error(message);
+    }
+
+    // Check WebGL support
+    if (!window.THREE) {
+      showError('Three.js no se pudo cargar. Por favor, recarga la página.');
+    }
+
+    const canvas = document.createElement('canvas');
+    document.getElementById('canvas-container').appendChild(canvas);
+
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    } catch (e) {
+      showError('WebGL no está soportado en tu navegador.');
+      throw e;
+    }
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
+    const light = new THREE.Vector3(1.4, 0.6, 1.0).normalize();
+
+    // Camera spherical coordinates
+    const sphericalCoords = { theta: 0, phi: Math.PI / 2, radius: 3.1 };
+
+    // Update camera position from spherical coordinates
+    function updateCamera() {
+      const { theta, phi, radius } = sphericalCoords;
+      camera.position.set(
+        Math.sin(phi) * Math.sin(theta) * radius,
+        Math.cos(phi) * radius,
+        Math.sin(phi) * Math.cos(theta) * radius
+      );
+      camera.lookAt(0, 0, 0);
+    }
+
+    updateCamera();
+
+    // ============================================================================
+    // GEOMETRY & MATERIALS
+    // ============================================================================
+
+    // Reduced from 96x96 to 64x64 for better performance
+    const planetGeometry = new THREE.SphereGeometry(1, 64, 64);
+    const cloudGeometry = new THREE.SphereGeometry(1.013, 64, 64);
+    const atmosphereGeometry = new THREE.SphereGeometry(1.1, 32, 32);
+
+    function createPlanetMaterial() {
+      return new THREE.ShaderMaterial({
+        vertexShader: PLANET_VERTEX,
+        fragmentShader: PLANET_FRAGMENT,
+        uniforms: {
+          uT: { value: 0 },
+          uS: { value: STATE.seed },
+          uL: { value: light },
+          uW: { value: PLANET_PRESETS[STATE.currentPlanet].w },
+          uPo: { value: PLANET_PRESETS[STATE.currentPlanet].po },
+          uR: { value: PLANET_PRESETS[STATE.currentPlanet].r },
+          uSc: { value: PLANET_PRESETS[STATE.currentPlanet].sc },
+          uG: { value: PLANET_PRESETS[STATE.currentPlanet].g },
+          uWp: { value: PLANET_PRESETS[STATE.currentPlanet].wp },
+          uLv: { value: PLANET_PRESETS[STATE.currentPlanet].lv },
+          uGl: { value: PLANET_PRESETS[STATE.currentPlanet].gl },
+          uAm: { value: PLANET_PRESETS[STATE.currentPlanet].am },
+          uC0: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[0]) },
+          uC1: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[1]) },
+          uC2: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[2]) },
+          uC3: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[3]) },
+          uC4: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[4]) },
+          uC5: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[5]) },
+          uC6: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].c[6]) },
+          uN: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].ni) },
+        },
+      });
+    }
+
+    function createCloudMaterial() {
+      return new THREE.ShaderMaterial({
+        vertexShader: CLOUD_VERTEX,
+        fragmentShader: CLOUD_FRAGMENT,
+        transparent: true,
+        depthWrite: false,
+        uniforms: {
+          uT: { value: 0 },
+          uS: { value: STATE.seed },
+          uCv: { value: PLANET_PRESETS[STATE.currentPlanet].cv },
+          uSc: { value: PLANET_PRESETS[STATE.currentPlanet].sc },
+          uL: { value: light },
+          uCo: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].ci) },
+        },
+      });
+    }
+
+    function createAtmosphereMaterial() {
+      return new THREE.ShaderMaterial({
+        vertexShader: ATMOSPHERE_VERTEX,
+        fragmentShader: ATMOSPHERE_FRAGMENT,
+        transparent: true,
+        side: THREE.BackSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uCo: { value: new THREE.Color(...PLANET_PRESETS[STATE.currentPlanet].ai) },
+          uL: { value: light },
+          uI: { value: PLANET_PRESETS[STATE.currentPlanet].aI },
+        },
+      });
+    }
+
+    let planetMaterial = createPlanetMaterial();
+    let cloudMaterial = createCloudMaterial();
+    let atmosphereMaterial = createAtmosphereMaterial();
+
+    const planetMesh = new THREE.Mesh(planetGeometry, planetMaterial);
+    const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+    const atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+
+    scene.add(planetMesh);
+    scene.add(cloudMesh);
+    scene.add(atmosphereMesh);
+
+    // Create starfield
+    const starGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(4200 * 3);
+    const colors = new Float32Array(4200 * 3);
+
+    for (let i = 0; i < 4200; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const radius = 46 + Math.random() * 10;
+
+      positions[i * 3] = Math.sin(phi) * Math.cos(theta) * radius;
+      positions[i * 3 + 1] = Math.cos(phi) * radius;
+      positions[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
+
+      colors[i * 3] = Math.random() * 0.5 + 0.5;
+      colors[i * 3 + 1] = Math.random() * 0.5 + 0.5;
+      colors[i * 3 + 2] = Math.random() * 0.5 + 0.5;
+    }
+
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const stars = new THREE.Points(
+      starGeometry,
+      new THREE.PointsMaterial({ size: 0.055, vertexColors: true, sizeAttenuation: true })
+    );
+    scene.add(stars);
+
+    // ============================================================================
+    // EVENT HANDLING
+    // ============================================================================
+
+    // Mouse controls
+    let isMouseDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.clientX < window.innerWidth - 268) {
+        isMouseDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isMouseDragging = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDragging) return;
+      sphericalCoords.theta -= (e.clientX - lastMouseX) * 0.008;
+      sphericalCoords.phi = Math.max(
+        0.08,
+        Math.min(Math.PI - 0.08, sphericalCoords.phi - (e.clientY - lastMouseY) * 0.008)
+      );
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      updateCamera();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      sphericalCoords.radius = Math.max(
+        1.5,
+        Math.min(7, sphericalCoords.radius + e.deltaY * 0.004)
+      );
+      updateCamera();
+    }, { passive: true });
+
+    // Touch controls
+    let isTouchDragging = false;
+    let lastTouchX = 0, lastTouchY = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches[0].clientX < window.innerWidth - 268) {
+        isTouchDragging = true;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (!isTouchDragging) return;
+      sphericalCoords.theta -= (e.touches[0].clientX - lastTouchX) * 0.012;
+      sphericalCoords.phi = Math.max(
+        0.08,
+        Math.min(Math.PI - 0.08, sphericalCoords.phi - (e.touches[0].clientY - lastTouchY) * 0.012)
+      );
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+      updateCamera();
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      isTouchDragging = false;
+    });
+
+    // ============================================================================
+    // UI FUNCTIONS
+    // ============================================================================
+
+    function setColor(colorUniform, rgb) {
+      colorUniform.r = rgb[0];
+      colorUniform.g = rgb[1];
+      colorUniform.b = rgb[2];
+    }
+
+    function applyPlanetPreset(key) {
+      STATE.currentPlanet = key;
+      const preset = PLANET_PRESETS[key];
+
+      // Update params
+      STATE.params.w = preset.w;
+      STATE.params.po = preset.po;
+      STATE.params.r = preset.r;
+      STATE.params.sc = preset.sc;
+      STATE.params.cv = preset.cv;
+      STATE.params.wp = preset.wp;
+
+      // Update planet material
+      const u = planetMaterial.uniforms;
+      u.uW.value = preset.w;
+      u.uPo.value = preset.po;
+      u.uR.value = preset.r;
+      u.uSc.value = preset.sc;
+      u.uG.value = preset.g;
+      u.uWp.value = preset.wp;
+      u.uLv.value = preset.lv;
+      u.uGl.value = preset.gl;
+      u.uAm.value = preset.am;
+
+      for (let i = 0; i < 7; i++) {
+        setColor(u['uC' + i].value, preset.c[i]);
+      }
+      setColor(u.uN.value, preset.ni);
+
+      // Update cloud material
+      cloudMaterial.uniforms.uCv.value = preset.cv;
+      cloudMaterial.uniforms.uSc.value = preset.sc;
+      setColor(cloudMaterial.uniforms.uCo.value, preset.ci);
+
+      // Update atmosphere material
+      setColor(atmosphereMaterial.uniforms.uCo.value, preset.ai);
+      atmosphereMaterial.uniforms.uI.value = preset.aI;
+
+      // Update UI
+      document.getElementById('pname').textContent = preset.n;
+      document.querySelectorAll('.pb').forEach((btn) => {
+        btn.classList.toggle('on', btn.dataset.key === key);
+      });
+
+      buildSliders();
+    }
+
+    function buildSliders() {
+      const sliderConfig = [
+        { key: 'w', label: 'Nivel del mar', min: 0, max: 0.85, step: 0.01, hide: PLANET_PRESETS[STATE.currentPlanet].g > 0.5 || PLANET_PRESETS[STATE.currentPlanet].w < 0 },
+        { key: 'sc', label: 'Escala terreno', min: 1.0, max: 5.5, step: 0.1 },
+        { key: 'r', label: 'Rugosidad FBM', min: 0.3, max: 0.78, step: 0.01 },
+        { key: 'wp', label: 'Domain warp', min: 0, max: 2.5, step: 0.05 },
+        { key: 'cv', label: 'Nubes', min: 0.1, max: 0.9, step: 0.01 },
+        { key: 'po', label: 'Casquete polar', min: 0.2, max: 1.0, step: 0.01, hide: PLANET_PRESETS[STATE.currentPlanet].g > 0.5 },
+        { key: 'sp', label: 'Velocidad', min: 0, max: 3, step: 0.1 },
+      ];
+
+      const ctrlsDiv = document.getElementById('ctrls');
+      ctrlsDiv.innerHTML = sliderConfig
+        .filter((s) => !s.hide)
+        .map(
+          (s) => `
+        <div class="slider-row">
+          <div class="slider-label">
+            <span>${s.label}</span>
+            <span class="slider-value" id="sv_${s.key}">${STATE.params[s.key].toFixed(2)}</span>
+          </div>
+          <input type="range" data-key="${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${STATE.params[s.key]}">
+        </div>
+      `
+        )
+        .join('');
+
+      // Use event delegation to avoid memory leaks
+      ctrlsDiv.addEventListener('input', (e) => {
+        if (e.target.type !== 'range') return;
+
+        const key = e.target.dataset.key;
+        const value = parseFloat(e.target.value);
+
+        STATE.params[key] = value;
+        document.getElementById('sv_' + key).textContent = value.toFixed(2);
+
+        const u = planetMaterial.uniforms;
+        switch (key) {
+          case 'w':
+            u.uW.value = value;
+            break;
+          case 'sc':
+            u.uSc.value = value;
+            cloudMaterial.uniforms.uSc.value = value;
+            break;
+          case 'r':
+            u.uR.value = value;
+            break;
+          case 'wp':
+            u.uWp.value = value;
+            break;
+          case 'cv':
+            cloudMaterial.uniforms.uCv.value = value;
+            break;
+          case 'po':
+            u.uPo.value = value;
+            break;
+        }
+      });
+    }
+
+    // ============================================================================
+    // UI INITIALIZATION
+    // ============================================================================
+
+    const gridDiv = document.getElementById('pbgrid');
+    Object.entries(PLANET_PRESETS).forEach(([key, preset]) => {
+      const btn = document.createElement('button');
+      btn.className = 'pb';
+      btn.dataset.key = key;
+      btn.innerHTML = preset.ic + '<br>' + preset.n.split(' ')[0];
+      btn.addEventListener('click', () => applyPlanetPreset(key));
+      gridDiv.appendChild(btn);
+    });
+
+    // Button handlers
+    document.getElementById('bAtm').addEventListener('click', function () {
+      STATE.showAtmosphere = !STATE.showAtmosphere;
+      atmosphereMesh.visible = STATE.showAtmosphere;
+      this.classList.toggle('active');
+    });
+
+    document.getElementById('bCld').addEventListener('click', function () {
+      STATE.showClouds = !STATE.showClouds;
+      cloudMesh.visible = STATE.showClouds;
+      this.classList.toggle('active');
+    });
+
+    document.getElementById('bRot').addEventListener('click', function () {
+      STATE.autoRotate = !STATE.autoRotate;
+      this.classList.toggle('active');
+    });
+
+    document.getElementById('bRnd').addEventListener('click', () => {
+      STATE.seed = Math.random() * 200 - 100;
+      planetMaterial.uniforms.uS.value = STATE.seed;
+      cloudMaterial.uniforms.uS.value = STATE.seed;
+      document.getElementById('pseed').textContent = 'seed: ' + STATE.seed.toFixed(1);
+    });
+
+    // Initialize
+    applyPlanetPreset('terrestrial');
+    document.getElementById('pseed').textContent = 'seed: ' + STATE.seed.toFixed(1);
+    document.getElementById('bAtm').classList.add('active');
+    document.getElementById('bCld').classList.add('active');
+    document.getElementById('bRot').classList.add('active');
+
+    // ============================================================================
+    // RESIZE HANDLING
+    // ============================================================================
+
+    function updateCanvasSize() {
+      const width = window.innerWidth - 268;
+      const height = window.innerHeight;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+
+    // Use ResizeObserver for better performance
+    const resizeObserver = new ResizeObserver(() => {
+      updateCanvasSize();
+    });
+    resizeObserver.observe(document.getElementById('canvas-container'));
+
+    // Fallback for older browsers
+    window.addEventListener('resize', updateCanvasSize);
+
+    // ============================================================================
+    // ANIMATION LOOP
+    // ============================================================================
+
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.016;
+
+      const rotationSpeed = STATE.params.sp * 0.004;
+      if (STATE.autoRotate) {
+        planetMesh.rotation.y += rotationSpeed;
+        cloudMesh.rotation.y += rotationSpeed * 1.14;
+        atmosphereMesh.rotation.y += rotationSpeed * 0.5;
+      }
+
+      planetMaterial.uniforms.uT.value = time;
+      cloudMaterial.uniforms.uT.value = time;
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
